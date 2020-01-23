@@ -1,15 +1,12 @@
 import os
 import json
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from time import sleep
 
-mobile_emulation = {
-    "deviceMetrics": { "width": 360, "height": 640, "pixelRatio": 3.0 },
-    "userAgent": "Mozilla/5.0 (Linux; Android 4.2.1; en-us; Nexus 5 Build/JOP40D) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.166 Mobile Safari/535.19" }
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
-options = Options()
-options.add_experimental_option("mobileEmulation", mobile_emulation)
+import pyautogui
+
 
 class Instagram:
     _driver = None
@@ -17,19 +14,22 @@ class Instagram:
     _status_sign_in = False
 
     mobile_emulation = {
-    "deviceMetrics": { "width": 360, "height": 640, "pixelRatio": 3.0 },
-    "userAgent": "Mozilla/5.0 (Linux; Android 4.2.1; en-us; Nexus 5 Build/JOP40D) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.166 Mobile Safari/535.19" }
-    options = Options()
-    options.add_experimental_option("mobileEmulation", mobile_emulation)
+        "deviceMetrics": {"width": 360, "height": 640, "pixelRatio": 3.0},
+        "userAgent": "Mozilla/5.0 (Linux; Android 4.2.1; en-us; Nexus 5 Build/JOP40D) "
+                     "AppleWebKit/535.19 (KHTML, like Gecko) "
+                     "Chrome/18.0.1025.166 Mobile Safari/535.19"}
+    _options = Options()
+    _options.add_experimental_option("mobileEmulation", mobile_emulation)
 
     def _set_driver(self, driver_choice):
         driver_choice = driver_choice.lower()
         if driver_choice == "chrome":
-            self._driver = webdriver.Chrome(options = options)
+            self._driver = webdriver.Chrome(options=self._options)
         elif driver_choice == "firefox":
-            self._driver = webdriver.Firefox(options = options)
+            self._driver = webdriver.Firefox(options=self._options)
         else:
             print("Please choose 'chrome' or 'firefox'.")
+            return False
         return True
 
     def open(self, driver_choice="chrome"):
@@ -120,22 +120,41 @@ class Instagram:
         except:
             pass
         else:
-            self._driver.find_element_by_xpath('//button[text()="Not Now"]').click()
+            self._driver.find_element_by_xpath("//button[text()='Not Now']").click()
             sleep(3)
             print("Closed 'Remember the browser' popup.")
 
         try:
-            self._driver.find_element_by_xpath('//button[text()="Add to Home screen"]')
+            self._driver.find_element_by_xpath("//button[text()='Add to Home screen']")
         except:
             pass
         else:
-            self._driver.find_element_by_xpath('//button[text()="Cancel"]').click()
+            self._driver.find_element_by_xpath("//button[text()='Cancel']").click()
             sleep(1)
             print("Closed 'Add Instagram to Home screen' popup.")
+
+    def upload_photo(self, filepath, caption=''):
+        self._driver.find_element_by_xpath("//*[name()='svg'][@aria-label='New Post']").click()
+        sleep(1)
+        self.select_image(filepath)
+        sleep(1)
+        self._driver.find_element_by_xpath("//button[text()='Next']").click()
+        sleep(1)
+        if len(caption) > 0:
+            self._driver.find_element_by_xpath("//textarea[@aria-label='Write a caption…']").send_keys(caption)
+        self._driver.find_element_by_xpath("//button[text()='Share']").click()
+
+    @staticmethod
+    def select_image(file_name):
+        pyautogui.hotkey('ctrl', 'l')
+        full_path = os.getcwd() + '/' + file_name
+        pyautogui.write(full_path)
+        pyautogui.press('enter')
 
 
 if __name__ == "__main__":
     i = Instagram()
     config = i.read_config()
     i.open()
-    i.sign_in(config['username'], config['password'])
+    i.sign_in(config["username"], config["password"])
+    #  i.upload_photo("test.jpg", "test")

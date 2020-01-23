@@ -4,7 +4,7 @@ Script that collects most popular content from selected Instagram profiles and r
 
 - [x] log in to Instagram
 - [ ] find most popular content on selected profiles
-- [ ] repost image
+- [x] upload image
 
 ---
 <sup>Project made for Krzysztof, who want to waste less time on Instagram and stay relevant at meme game.</sup>
