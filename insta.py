@@ -151,6 +151,23 @@ class Instagram:
         pyautogui.write(full_path)
         pyautogui.press('enter')
 
+    def find_images(self, page_name):
+        self._driver.get("https://www.instagram.com/{}/feed/".format(page_name))
+        sleep(3)
+        posts_ids = []
+        dates = self._driver.find_elements_by_xpath("//time")
+        print(len(dates))
+        for el in dates:
+            try:
+                post_time = el.get_attribute("datetime")
+            except Exception as e:
+                print(e)
+
+            base = el.find_element_by_xpath("..")
+            post_id = base.get_attribute("href")
+            posts_ids.append(post_id)
+            print(post_id)
+            print(post_time)
 
 if __name__ == "__main__":
     i = Instagram()
@@ -158,3 +175,4 @@ if __name__ == "__main__":
     i.open()
     i.sign_in(config["username"], config["password"])
     #  i.upload_photo("test.jpg", "test")
+    i.find_images('spicybaristamemes')
