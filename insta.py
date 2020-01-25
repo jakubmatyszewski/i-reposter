@@ -1,6 +1,7 @@
 import os
 import json
 from time import sleep
+import datetime
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -152,22 +153,36 @@ class Instagram:
         pyautogui.press('enter')
 
     def find_images(self, page_name):
+        date = datetime.datetime.now()
         self._driver.get("https://www.instagram.com/{}/feed/".format(page_name))
         sleep(3)
-        posts_ids = []
-        dates = self._driver.find_elements_by_xpath("//time")
-        print(len(dates))
-        for el in dates:
-            try:
-                post_time = el.get_attribute("datetime")
-            except Exception as e:
-                print(e)
+        recent = True
+        while recent:
+            posts_ids = []
+            dates = self._driver.find_elements_by_xpath("//time")
+            # print(len(dates))
+            for el in dates:
+                image_el = el.find_elements_by_xpath("../../../..//img")[1]
+                image_src = image_el.get_attribute("src")
+                print(image_src)
 
-            base = el.find_element_by_xpath("..")
-            post_id = base.get_attribute("href")
-            posts_ids.append(post_id)
-            print(post_id)
-            print(post_time)
+                caption_path = "../../..//a[@href='/{}/']/following-sibling::span/span".format(page_name)
+                caption_el = el.find_element_by_xpath(caption_path)
+                print(caption_el.text)
+
+                post_time = el.get_attribute("datetime")  # datetime as `str`
+                post_time = datetime.datetime.strptime(post_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+                delta = date - post_time
+                if delta.days < 30:
+                    base = el.find_element_by_xpath("..")
+                    post_id = base.get_attribute("href")
+                    posts_ids.append(post_id)
+                else:
+                    recent = False
+            print(posts_ids)
+            self._driver.execute_script("arguments[0].scrollIntoView();", dates[-1])
+            sleep(1)
+
 
 if __name__ == "__main__":
     i = Instagram()
