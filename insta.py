@@ -1,7 +1,9 @@
 import os
 import json
-from time import sleep
 import datetime
+import re
+from time import sleep
+import urllib.request
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -147,41 +149,69 @@ class Instagram:
 
     @staticmethod
     def select_image(file_name):
+        """
+        Workaround function for IG upload window.
+        Since I can't use official InstagramAPI
+        and private_instagram_api seems to not be working.
+        Caution: This works on Linux exclusively.
+
+        :param file_name: Name of file in working directory.
+        """
         pyautogui.hotkey('ctrl', 'l')
         full_path = os.getcwd() + '/' + file_name
         pyautogui.write(full_path)
         pyautogui.press('enter')
 
-    def find_images(self, page_name):
+    def find_images(self, page_name, recency):
+        """
+        Locates image src and caption.
+
+        :param page_name:
+        :param recency: max days to be taken into search scope
+        :return:
+        """
         date = datetime.datetime.now()
         self._driver.get("https://www.instagram.com/{}/feed/".format(page_name))
         sleep(3)
         recent = True
+        posts = {}
         while recent:
-            posts_ids = []
             dates = self._driver.find_elements_by_xpath("//time")
-            # print(len(dates))
             for el in dates:
-                image_el = el.find_elements_by_xpath("../../../..//img")[1]
-                image_src = image_el.get_attribute("src")
-                print(image_src)
-
-                caption_path = "../../..//a[@href='/{}/']/following-sibling::span/span".format(page_name)
-                caption_el = el.find_element_by_xpath(caption_path)
-                print(caption_el.text)
-
+                # Get post time
                 post_time = el.get_attribute("datetime")  # datetime as `str`
                 post_time = datetime.datetime.strptime(post_time, "%Y-%m-%dT%H:%M:%S.%fZ")
-                delta = date - post_time
-                if delta.days < 30:
+                delta = date - post_time  # Compose recency condition
+
+                if delta.days < recency:
                     base = el.find_element_by_xpath("..")
-                    post_id = base.get_attribute("href")
-                    posts_ids.append(post_id)
+                    post_addr = base.get_attribute("href")
+                    post_id = re.search('(?<=/p/)(.*)(?=/)', post_addr).group(1)
+
+                    # Get image
+                    image_el = el.find_elements_by_xpath("../../../..//img")[1]
+                    image_src = image_el.get_attribute("src")
+
+                    # Get description
+                    caption_path = "../../..//a[@href='/{}/']/following-sibling::span/span".format(page_name)
+                    caption_el = el.find_element_by_xpath(caption_path).text
+
+                    like_path = "//a[@href='/p/{}/liked_by/']/span".format(post_id)
+                    views_path = "../../..//span[text()[contains(., 'views')]]"
+                    try:
+                        like_el = self._driver.find_element_by_xpath(like_path).text
+                    except:
+                        likes_el = el.find_element_by_xpath(views_path).text
+                        likes = int(''.join(re.findall('\d+', likes_el)))
+                    else:
+                        likes = int(''.join(re.findall('\d+', like_el)))
+                    posts[post_id] = {'img': image_src, 'caption': caption_el, 'likes': likes}
                 else:
                     recent = False
-            print(posts_ids)
+
             self._driver.execute_script("arguments[0].scrollIntoView();", dates[-1])
             sleep(1)
+        print(posts)
 
 
 if __name__ == "__main__":
@@ -189,5 +219,5 @@ if __name__ == "__main__":
     config = i.read_config()
     i.open()
     i.sign_in(config["username"], config["password"])
-    #  i.upload_photo("test.jpg", "test")
-    i.find_images('spicybaristamemes')
+    # i.upload_photo("test.jpg", "test")
+    i.find_images('spicybaristamemes', 30)
