@@ -2,11 +2,13 @@ import os
 import json
 import datetime
 import re
-from time import sleep
 import urllib.request
+from time import sleep
+from math import ceil
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
 
 import pyautogui
 
@@ -15,6 +17,7 @@ class Instagram:
     _driver = None
     _status_driver = False
     _status_sign_in = False
+    posts = {}
 
     mobile_emulation = {
         "deviceMetrics": {"width": 360, "height": 640, "pixelRatio": 3.0},
@@ -136,35 +139,9 @@ class Instagram:
             sleep(1)
             print("Closed 'Add Instagram to Home screen' popup.")
 
-    def upload_photo(self, filepath, caption=''):
-        self._driver.find_element_by_xpath("//*[name()='svg'][@aria-label='New Post']").click()
-        sleep(1)
-        self.select_image(filepath)
-        sleep(1)
-        self._driver.find_element_by_xpath("//button[text()='Next']").click()
-        sleep(1)
-        if len(caption) > 0:
-            self._driver.find_element_by_xpath("//textarea[@aria-label='Write a caption…']").send_keys(caption)
-        self._driver.find_element_by_xpath("//button[text()='Share']").click()
-
-    @staticmethod
-    def select_image(file_name):
-        """
-        Workaround function for IG upload window.
-        Since I can't use official InstagramAPI
-        and private_instagram_api seems to not be working.
-        Caution: This works on Linux exclusively.
-
-        :param file_name: Name of file in working directory.
-        """
-        pyautogui.hotkey('ctrl', 'l')
-        full_path = os.getcwd() + '/' + file_name
-        pyautogui.write(full_path)
-        pyautogui.press('enter')
-
     def find_images(self, page_name, recency):
         """
-        Locates image src and caption.
+        Finds image and checks it's like count.
 
         :param page_name:
         :param recency: max days to be taken into search scope
@@ -174,7 +151,6 @@ class Instagram:
         self._driver.get("https://www.instagram.com/{}/feed/".format(page_name))
         sleep(3)
         recent = True
-        posts = {}
         while recent:
             dates = self._driver.find_elements_by_xpath("//time")
             for el in dates:
@@ -188,14 +164,6 @@ class Instagram:
                     post_addr = base.get_attribute("href")
                     post_id = re.search('(?<=/p/)(.*)(?=/)', post_addr).group(1)
 
-                    # Get image
-                    image_el = el.find_elements_by_xpath("../../../..//img")[1]
-                    image_src = image_el.get_attribute("src")
-
-                    # Get description
-                    caption_path = "../../..//a[@href='/{}/']/following-sibling::span/span".format(page_name)
-                    caption_el = el.find_element_by_xpath(caption_path).text
-
                     like_path = "//a[@href='/p/{}/liked_by/']/span".format(post_id)
                     views_path = "../../..//span[text()[contains(., 'views')]]"
                     try:
@@ -205,13 +173,43 @@ class Instagram:
                         likes = int(''.join(re.findall('\d+', likes_el)))
                     else:
                         likes = int(''.join(re.findall('\d+', like_el)))
-                    posts[post_id] = {'img': image_src, 'caption': caption_el, 'likes': likes}
+                    self.posts[post_id] = {'likes': likes}
                 else:
                     recent = False
 
             self._driver.execute_script("arguments[0].scrollIntoView();", dates[-1])
             sleep(1)
-        print(posts)
+        self.save_best_posts()
+
+    def save_best_posts(self, threshold=0.2):
+        assert 0 < threshold < 1, "Wrong threshold value. Use decimal value between 0 and 1. Default: 0.2"
+        number = ceil(len(self.posts) * threshold)  # Grab x% of best posts.
+        print("Saving {} posts.".format(number))
+        while number > 0:
+            all_likes = [post['likes'] for post in self.posts.values()]
+            for pid, post in self.posts.items():
+                if post['likes'] == max(all_likes):
+                    self.save_post(pid)
+                    print("Saved a post. ID: {}, with {} likes.".format(pid, post['likes']))
+                    self.posts[pid]['likes'] = 0  # Ensure picked post won't be picked again.
+                    number -= 1
+
+    def save_post(self, pid):
+        looking_for_el = True
+        top = self._driver.find_element_by_tag_name("main")
+        self._driver.execute_script("arguments[0].scrollIntoView();", top)
+        while looking_for_el:
+            try:
+                element = self._driver.find_element_by_xpath("*//a[@href='/p/{}/']/time".format(pid))
+                self._driver.execute_script("arguments[0].scrollIntoView();", element)
+                self._driver.execute_script("window.scrollBy(0, -200);")  # Get save button into view.
+            except:
+                print("Can't locate the post.")
+                self._driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            else:
+                looking_for_el = False
+        save_path = "./../../..//*[name()='svg'][@aria-label='Save']"
+        element.find_element_by_xpath(save_path).click()  # Save!
 
 
 if __name__ == "__main__":
@@ -219,5 +217,4 @@ if __name__ == "__main__":
     config = i.read_config()
     i.open()
     i.sign_in(config["username"], config["password"])
-    # i.upload_photo("test.jpg", "test")
     i.find_images('spicybaristamemes', 30)

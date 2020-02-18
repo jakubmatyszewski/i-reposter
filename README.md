@@ -1,10 +1,10 @@
-# i-reposter
+# i-saver
 
-Script that collects most popular content from selected Instagram profiles and reposts it to your account.
+Script that looks up most popular content from selected Instagram profiles and saves it to for you.
 
 - [x] log in to Instagram
-- [ ] find most popular content on selected profiles
-- [x] upload image
+- [x] find most popular content on selected profiles
+- [x] save image
 
 ---
-<sup>Project made for Krzysztof, who want to waste less time on Instagram and stay relevant at meme game.</sup>
+<sup>Project made for @QualiaQ, who want to waste less time on Instagram and stay relevant at meme game.</sup>
