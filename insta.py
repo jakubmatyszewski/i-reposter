@@ -2,15 +2,11 @@ import os
 import json
 import datetime
 import re
-import urllib.request
 from time import sleep
 from math import ceil
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.keys import Keys
-
-import pyautogui
 
 
 class Instagram:
@@ -147,6 +143,7 @@ class Instagram:
         :param recency: max days to be taken into search scope
         :return:
         """
+        self.posts = {}
         date = datetime.datetime.now()
         self._driver.get("https://www.instagram.com/{}/feed/".format(page_name))
         sleep(3)
@@ -165,15 +162,13 @@ class Instagram:
                     post_id = re.search('(?<=/p/)(.*)(?=/)', post_addr).group(1)
 
                     like_path = "//a[@href='/p/{}/liked_by/']/span".format(post_id)
-                    views_path = "../../..//span[text()[contains(., 'views')]]"
                     try:
                         like_el = self._driver.find_element_by_xpath(like_path).text
                     except:
-                        likes_el = el.find_element_by_xpath(views_path).text
-                        likes = int(''.join(re.findall('\d+', likes_el)))
+                        pass  # Element found is a video.
                     else:
                         likes = int(''.join(re.findall('\d+', like_el)))
-                    self.posts[post_id] = {'likes': likes}
+                        self.posts[post_id] = {'likes': likes}
                 else:
                     recent = False
 
@@ -193,6 +188,8 @@ class Instagram:
                     print("Saved a post. ID: {}, with {} likes.".format(pid, post['likes']))
                     self.posts[pid]['likes'] = 0  # Ensure picked post won't be picked again.
                     number -= 1
+                    print("Still {} to save.".format(number))
+            print("Yup, still {} to save.".format(number))
 
     def save_post(self, pid):
         looking_for_el = True
@@ -200,16 +197,24 @@ class Instagram:
         self._driver.execute_script("arguments[0].scrollIntoView();", top)
         while looking_for_el:
             try:
+                print("Looking for: {}".format(pid))
                 element = self._driver.find_element_by_xpath("*//a[@href='/p/{}/']/time".format(pid))
-                self._driver.execute_script("arguments[0].scrollIntoView();", element)
+                element.location_once_scrolled_into_view
+                # self._driver.execute_script("arguments[0].scrollIntoView();", element)
                 self._driver.execute_script("window.scrollBy(0, -200);")  # Get save button into view.
             except:
                 print("Can't locate the post.")
-                self._driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                # self._driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                self._driver.execute_script("window.scrollBy(0, window.innerHeight);")
+                sleep(0.5)
             else:
                 looking_for_el = False
-        save_path = "./../../..//*[name()='svg'][@aria-label='Save']"
-        element.find_element_by_xpath(save_path).click()  # Save!
+        try:
+            save_path = "./../../..//*[name()='svg'][@aria-label='Save']"
+            element.find_element_by_xpath(save_path).click()  # Save!
+            return True
+        except:
+            return True  # Element has been already saved.
 
 
 if __name__ == "__main__":
@@ -217,4 +222,6 @@ if __name__ == "__main__":
     config = i.read_config()
     i.open()
     i.sign_in(config["username"], config["password"])
-    i.find_images('spicybaristamemes', 30)
+    if config['pages']:
+        for page in config["pages"]:
+            i.find_images(page, 100)
