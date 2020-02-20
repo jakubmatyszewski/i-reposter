@@ -202,7 +202,6 @@ class Instagram:
             try:
                 element = self._driver.find_element_by_xpath("*//a[@href='/p/{}/']/time".format(pid))
                 element.location_once_scrolled_into_view
-                # self._driver.execute_script("arguments[0].scrollIntoView();", element)
                 self._driver.execute_script("window.scrollBy(0, -200);")  # Get save button into view.
             except:
                 self._driver.execute_script("window.scrollBy(0, window.innerHeight);")
@@ -219,10 +218,10 @@ class Instagram:
 
 if __name__ == "__main__":
     i = Instagram()
-    config = i.read_config()
     i.open()
+    config = i.read_config()
     i.sign_in(config["username"], config["password"])
     if config['pages']:
         for page in config["pages"]:
-            i.find_images(page, 100)
+            i.find_images(page, config["recency"])
             i.save_best_posts()

@@ -1,5 +1,6 @@
 {
 	"username": "root",
 	"password": "pass",
+	"recency": 30,
 	"pages": ["memes", "myspacetom"]
 }
