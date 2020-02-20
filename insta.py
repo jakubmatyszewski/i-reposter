@@ -167,44 +167,44 @@ class Instagram:
                     except:
                         pass  # Element found is a video.
                     else:
+                        order = len(self.posts.keys())
                         likes = int(''.join(re.findall('\d+', like_el)))
-                        self.posts[post_id] = {'likes': likes}
+                        self.posts[post_id] = {'likes': likes, 'order': order}
                 else:
                     recent = False
-
             self._driver.execute_script("arguments[0].scrollIntoView();", dates[-1])
             sleep(1)
-        self.save_best_posts()
 
     def save_best_posts(self, threshold=0.2):
         assert 0 < threshold < 1, "Wrong threshold value. Use decimal value between 0 and 1. Default: 0.2"
         number = ceil(len(self.posts) * threshold)  # Grab x% of best posts.
         print("Saving {} posts.".format(number))
+        save_q = ['0'] * len(self.posts.keys())
         while number > 0:
             all_likes = [post['likes'] for post in self.posts.values()]
             for pid, post in self.posts.items():
                 if post['likes'] == max(all_likes):
-                    self.save_post(pid)
-                    print("Saved a post. ID: {}, with {} likes.".format(pid, post['likes']))
                     self.posts[pid]['likes'] = 0  # Ensure picked post won't be picked again.
+                    save_q[post['order']] = pid
                     number -= 1
-                    print("Still {} to save.".format(number))
-            print("Yup, still {} to save.".format(number))
+
+        top = self._driver.find_element_by_tag_name("main")
+        self._driver.execute_script("arguments[0].scrollIntoView();", top)
+        for postq in save_q:
+            if postq is not '0':
+                self.save_post(postq)
+                print("Saved a post. ID: {}.".format(postq))
+        return True
 
     def save_post(self, pid):
         looking_for_el = True
-        top = self._driver.find_element_by_tag_name("main")
-        self._driver.execute_script("arguments[0].scrollIntoView();", top)
         while looking_for_el:
             try:
-                print("Looking for: {}".format(pid))
                 element = self._driver.find_element_by_xpath("*//a[@href='/p/{}/']/time".format(pid))
                 element.location_once_scrolled_into_view
                 # self._driver.execute_script("arguments[0].scrollIntoView();", element)
                 self._driver.execute_script("window.scrollBy(0, -200);")  # Get save button into view.
             except:
-                print("Can't locate the post.")
-                # self._driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 self._driver.execute_script("window.scrollBy(0, window.innerHeight);")
                 sleep(0.5)
             else:
@@ -225,3 +225,4 @@ if __name__ == "__main__":
     if config['pages']:
         for page in config["pages"]:
             i.find_images(page, 100)
+            i.save_best_posts()
